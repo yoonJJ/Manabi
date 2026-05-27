@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manabi — 일본어 학습 플랫폼</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">学</div>
+      <div class="brand-text">
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">学び · 일본어 학습</div>
+      </div>
+    </div>
+
+    <nav class="side-nav">
+      <div class="nav-group">
+        <div class="nav-label">학습</div>
+        <button class="side-link active" data-target="dashboard">
+          <span class="icon">▦</span><span class="label">대시보드</span>
+        </button>
+        <button class="side-link" data-target="hiragana">
+          <span class="icon">あ</span><span class="label">히라가나</span>
+          <span class="badge" id="badge-hiragana">46자</span>
+        </button>
+        <button class="side-link" data-target="katakana">
+          <span class="icon">ア</span><span class="label">가타카나</span>
+          <span class="badge" id="badge-katakana">46자</span>
+        </button>
+        <button class="side-link" data-target="greetings">
+          <span class="icon">✦</span><span class="label">기본 표현</span>
+        </button>
+        <button class="side-link" data-target="numbers">
+          <span class="icon">#</span><span class="label">숫자</span>
+        </button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">연습</div>
+        <button class="side-link" data-target="quiz">
+          <span class="icon">◎</span><span class="label">퀴즈</span>
+        </button>
+        <button class="side-link" data-target="stats">
+          <span class="icon">▴</span><span class="label">통계</span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="streak-mini">
+        <span class="streak-icon">◆</span>
+        <div class="streak-info">
+          <div class="streak-value"><span id="streak-days">0</span>일 연속</div>
+          <div class="streak-sub">Lv <span id="user-level">1</span> · <span id="user-xp">0</span> XP</div>
+        </div>
+      </div>
+      <div class="progress-mini">
+        <div class="progress-mini-label">
+          <span>학습 진행도</span>
+          <span id="overall-percent">0%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="overall-fill"></div></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <button class="menu-btn" id="menu-btn" aria-label="메뉴 열기">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="crumb-base">학습</span>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-current" id="crumb-current">대시보드</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="stat-chip">
+          <span class="stat-label">학습한 글자</span>
+          <span class="stat-value" id="chip-learned">0</span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-label">퀴즈 정답률</span>
+          <span class="stat-value" id="chip-accuracy">—</span>
+        </div>
+        <button class="ghost-btn" id="reset-btn">기록 초기화</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- ============ 대시보드 ============ -->
+      <section id="dashboard" class="page active">
+        <div class="hero">
+          <div class="hero-text">
+            <div class="eyebrow">시작하기</div>
+            <h1>완전 입문자도, 차근차근.</h1>
+            <p>히라가나도 모르는 상태에서 출발해 일본어의 기초를 쌓는 단계별 학습 경로입니다. 레슨을 따라 글자를 익히고, 4가지 퀴즈로 점검하세요.</p>
+            <div class="hero-cta">
+              <button class="btn-primary" id="continue-btn">학습 이어하기 →</button>
+              <button class="btn-secondary" data-jump="quiz">바로 퀴즈 풀기</button>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-title">오늘의 목표</div>
+            <div class="hero-card-body">
+              <div class="goal-row">
+                <span>레슨 1개 완료</span>
+                <span class="goal-meter" id="goal-1">0/1</span>
+              </div>
+              <div class="goal-row">
+                <span>퀴즈 10문제 풀기</span>
+                <span class="goal-meter" id="goal-2">0/10</span>
+              </div>
+              <div class="goal-row">
+                <span>약점 글자 복습</span>
+                <span class="goal-meter" id="goal-3">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">학습 코스</h2>
+        <div class="course-grid">
+          <div class="course-card" data-jump="hiragana">
+            <div class="course-tag">레벨 1</div>
+            <div class="course-name">히라가나</div>
+            <div class="course-desc">일본어의 기본 글자 46자. 10개 레슨으로 차근차근 학습해요.</div>
+            <div class="course-meta">
+              <span>10 레슨</span>
+              <span class="dot">·</span>
+              <span id="course-progress-hiragana">0% 완료</span>
+            </div>
+            <div class="progress-bar small"><div class="progress-fill" id="fill-hiragana"></div></div>
+          </div>
+
+          <div class="course-card" data-jump="katakana">
+            <div class="course-tag">레벨 2</div>
+            <div class="course-name">가타카나</div>
+            <div class="course-desc">외래어 표기에 쓰는 글자. 히라가나와 발음은 같아요.</div>
+            <div class="course-meta">
+              <span>10 레슨</span>
+              <span class="dot">·</span>
+              <span id="course-progress-katakana">0% 완료</span>
+            </div>
+            <div class="progress-bar small"><div class="progress-fill" id="fill-katakana"></div></div>
+          </div>
+
+          <div class="course-card" data-jump="greetings">
+            <div class="course-tag">레벨 1</div>
+            <div class="course-name">기본 표현</div>
+            <div class="course-desc">일상에서 쓰는 인사말과 표현 12가지.</div>
+            <div class="course-meta">
+              <span>12개</span>
+              <span class="dot">·</span>
+              <span>듣고 따라하기</span>
+            </div>
+          </div>
+
+          <div class="course-card" data-jump="numbers">
+            <div class="course-tag">레벨 1</div>
+            <div class="course-name">숫자 1~10</div>
+            <div class="course-desc">일본어로 숫자 세는 법.</div>
+            <div class="course-meta">
+              <span>10개</span>
+              <span class="dot">·</span>
+              <span>듣고 따라하기</span>
+            </div>
+          </div>
+
+          <div class="course-card highlight" data-jump="quiz">
+            <div class="course-tag accent">연습</div>
+            <div class="course-name">퀴즈 모드 4종</div>
+            <div class="course-desc">글자→로마자, 로마자→글자, 듣기, 약점 복습.</div>
+            <div class="course-meta">
+              <span id="quiz-stats">아직 시작 전</span>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">학습 가이드</h2>
+        <div class="guide-row">
+          <div class="guide-card">
+            <div class="guide-num">01</div>
+            <div class="guide-title">레슨 따라가기</div>
+            <p>히라가나/가타카나는 10개 레슨으로 나뉘어 있어요. 한 레슨씩 학습 → 미니퀴즈 통과 순서로 진행하세요.</p>
+          </div>
+          <div class="guide-card">
+            <div class="guide-num">02</div>
+            <div class="guide-title">반복이 핵심</div>
+            <p>틀린 글자는 자동으로 약점으로 기록됩니다. "약점 복습" 퀴즈로 부족한 부분을 집중 학습하세요.</p>
+          </div>
+          <div class="guide-card">
+            <div class="guide-num">03</div>
+            <div class="guide-title">매일 조금씩</div>
+            <p>연속 학습일과 XP가 누적됩니다. 하루 5~10분만 투자해도 1~2주면 카나가 익숙해져요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 히라가나 ============ -->
+      <section id="hiragana" class="page">
+        <div class="page-head">
+          <div>
+            <h1>히라가나 ひらがな</h1>
+            <p class="page-desc">일본어의 기본 글자 46자. 레슨을 순서대로 완료해보세요.</p>
+          </div>
+          <div class="page-head-meta">
+            <div class="meta-card">
+              <div class="meta-label">완료한 레슨</div>
+              <div class="meta-value"><span id="completed-hira-lessons">0</span> / 10</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">레슨</h2>
+        <div class="lesson-grid" id="hira-lesson-grid"></div>
+
+        <h2 class="section-title">전체 글자판</h2>
+        <p class="section-sub">색이 진할수록 익숙한 글자입니다. 클릭하면 발음을 들을 수 있어요.</p>
+        <div class="kana-grid" id="hiragana-grid"></div>
+      </section>
+
+      <!-- ============ 가타카나 ============ -->
+      <section id="katakana" class="page">
+        <div class="page-head">
+          <div>
+            <h1>가타카나 カタカナ</h1>
+            <p class="page-desc">외래어를 표기할 때 쓰는 글자. 히라가나와 발음은 같습니다.</p>
+          </div>
+          <div class="page-head-meta">
+            <div class="meta-card">
+              <div class="meta-label">완료한 레슨</div>
+              <div class="meta-value"><span id="completed-kata-lessons">0</span> / 10</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">레슨</h2>
+        <div class="lesson-grid" id="kata-lesson-grid"></div>
+
+        <h2 class="section-title">전체 글자판</h2>
+        <p class="section-sub">색이 진할수록 익숙한 글자입니다. 클릭하면 발음을 들을 수 있어요.</p>
+        <div class="kana-grid" id="katakana-grid"></div>
+      </section>
+
+      <!-- ============ 레슨 상세 (동적) ============ -->
+      <section id="lesson" class="page">
+        <button class="back-btn" id="lesson-back">← 돌아가기</button>
+        <div class="page-head">
+          <div>
+            <h1 id="lesson-title">레슨</h1>
+            <p class="page-desc" id="lesson-desc">5개 글자를 학습한 후 미니퀴즈로 점검하세요.</p>
+          </div>
+          <div class="page-head-meta">
+            <div class="meta-card">
+              <div class="meta-label">상태</div>
+              <div class="meta-value" id="lesson-status">학습 중</div>
+            </div>
+          </div>
+        </div>
+
+        <h2 class="section-title">학습 카드</h2>
+        <div class="kana-grid lesson-cards" id="lesson-cards"></div>
+
+        <div class="lesson-actions">
+          <button class="btn-primary" id="lesson-quiz-btn">미니퀴즈 시작 →</button>
+          <span class="lesson-hint">모든 글자를 한 번 이상 클릭해 들어본 후 퀴즈를 시작하세요.</span>
+        </div>
+      </section>
+
+      <!-- ============ 인사 ============ -->
+      <section id="greetings" class="page">
+        <div class="page-head">
+          <div>
+            <h1>기본 표현</h1>
+            <p class="page-desc">일상에서 자주 쓰는 인사말과 표현. 카드를 클릭해 발음을 들어보세요.</p>
+          </div>
+        </div>
+        <div class="greeting-list" id="greeting-list"></div>
+      </section>
+
+      <!-- ============ 숫자 ============ -->
+      <section id="numbers" class="page">
+        <div class="page-head">
+          <div>
+            <h1>숫자 1 ~ 10</h1>
+            <p class="page-desc">일본어로 숫자를 세는 법. 4와 7은 두 가지 읽는 방식이 있어요.</p>
+          </div>
+        </div>
+        <div class="number-list" id="number-list"></div>
+      </section>
+
+      <!-- ============ 퀴즈 ============ -->
+      <section id="quiz" class="page">
+        <div class="page-head">
+          <div>
+            <h1>퀴즈</h1>
+            <p class="page-desc">4가지 모드 중 하나를 선택하세요. 결과는 글자별 마스터리에 반영됩니다.</p>
+          </div>
+          <div class="page-head-meta">
+            <div class="meta-card">
+              <div class="meta-label">맞힘 / 전체</div>
+              <div class="meta-value"><span id="score">0</span> / <span id="total">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 모드 선택 -->
+        <div class="mode-grid" id="quiz-mode-grid">
+          <button class="mode-card" data-mode="kanaToRomaji">
+            <div class="mode-tag">기본</div>
+            <div class="mode-title">글자 → 로마자</div>
+            <div class="mode-desc">제시된 카나의 올바른 발음을 고르세요.</div>
+          </button>
+          <button class="mode-card" data-mode="romajiToKana">
+            <div class="mode-tag">역방향</div>
+            <div class="mode-title">로마자 → 글자</div>
+            <div class="mode-desc">로마자에 해당하는 카나를 고르세요.</div>
+          </button>
+          <button class="mode-card" data-mode="audio">
+            <div class="mode-tag">듣기</div>
+            <div class="mode-title">소리 → 글자</div>
+            <div class="mode-desc">발음을 듣고 해당하는 카나를 고르세요.</div>
+          </button>
+          <button class="mode-card weak" data-mode="weak">
+            <div class="mode-tag accent">스마트</div>
+            <div class="mode-title">약점 복습</div>
+            <div class="mode-desc">자주 틀린 글자를 집중 출제합니다.</div>
+            <div class="mode-meta" id="weak-count">약점 0자</div>
+          </button>
+        </div>
+
+        <!-- 퀴즈 진행 영역 -->
+        <div class="quiz-box" id="quiz-box" style="display:none;">
+          <div class="quiz-bar">
+            <button class="ghost-btn" id="quiz-exit">← 모드 선택</button>
+            <span class="quiz-mode-label" id="quiz-mode-label"></span>
+            <span class="quiz-progress" id="quiz-progress">0 / 10</span>
+          </div>
+          <div class="quiz-prompt" id="quiz-prompt"></div>
+          <div class="quiz-options" id="quiz-options"></div>
+          <div class="quiz-result" id="quiz-result"></div>
+          <button id="next-quiz" class="btn-primary">다음 문제 →</button>
+        </div>
+
+        <!-- 퀴즈 결과 -->
+        <div class="quiz-summary" id="quiz-summary" style="display:none;">
+          <div class="summary-big">
+            <div class="summary-score" id="summary-score">0 / 10</div>
+            <div class="summary-pct" id="summary-pct">0%</div>
+          </div>
+          <div class="summary-msg" id="summary-msg"></div>
+          <div class="summary-actions">
+            <button class="btn-primary" id="summary-retry">같은 모드로 다시</button>
+            <button class="btn-secondary" id="summary-back">모드 선택으로</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 통계 ============ -->
+      <section id="stats" class="page">
+        <div class="page-head">
+          <div>
+            <h1>학습 통계</h1>
+            <p class="page-desc">글자별 마스터리와 약점을 확인하세요.</p>
+          </div>
+        </div>
+
+        <div class="stats-cards">
+          <div class="stat-big">
+            <div class="stat-big-label">연속 학습</div>
+            <div class="stat-big-value"><span id="stats-streak">0</span><span class="unit">일</span></div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-label">레벨</div>
+            <div class="stat-big-value">Lv <span id="stats-level">1</span></div>
+            <div class="stat-big-sub"><span id="stats-xp">0</span> XP</div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-label">총 정답률</div>
+            <div class="stat-big-value"><span id="stats-accuracy">—</span></div>
+            <div class="stat-big-sub"><span id="stats-attempts">0</span> 문제 풀이</div>
+          </div>
+          <div class="stat-big">
+            <div class="stat-big-label">마스터한 글자</div>
+            <div class="stat-big-value"><span id="stats-mastered">0</span><span class="unit">자</span></div>
+            <div class="stat-big-sub">레벨 4 도달</div>
+          </div>
+        </div>
+
+        <h2 class="section-title">약점 글자 Top 10</h2>
+        <p class="section-sub">정답률이 낮거나 자주 틀린 글자입니다. 약점 복습 모드로 집중 학습하세요.</p>
+        <div class="weak-list" id="weak-list"></div>
+
+        <h2 class="section-title">히라가나 마스터리</h2>
+        <div class="kana-grid" id="stats-hira-grid"></div>
+
+        <h2 class="section-title">가타카나 마스터리</h2>
+        <div class="kana-grid" id="stats-kata-grid"></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,873 @@
+// ===================================================================
+// Manabi — 일본어 학습 플랫폼
+// ===================================================================
+
+// ============= 데이터 =============
+const hiraganaData = [
+  ['あ','a'], ['い','i'], ['う','u'], ['え','e'], ['お','o'],
+  ['か','ka'], ['き','ki'], ['く','ku'], ['け','ke'], ['こ','ko'],
+  ['さ','sa'], ['し','shi'], ['す','su'], ['せ','se'], ['そ','so'],
+  ['た','ta'], ['ち','chi'], ['つ','tsu'], ['て','te'], ['と','to'],
+  ['な','na'], ['に','ni'], ['ぬ','nu'], ['ね','ne'], ['の','no'],
+  ['は','ha'], ['ひ','hi'], ['ふ','fu'], ['へ','he'], ['ほ','ho'],
+  ['ま','ma'], ['み','mi'], ['む','mu'], ['め','me'], ['も','mo'],
+  ['や','ya'], ['',''],     ['ゆ','yu'], ['',''],     ['よ','yo'],
+  ['ら','ra'], ['り','ri'], ['る','ru'], ['れ','re'], ['ろ','ro'],
+  ['わ','wa'], ['',''],     ['',''],     ['',''],     ['を','wo'],
+  ['ん','n'],  ['',''],     ['',''],     ['',''],     ['','']
+];
+
+const katakanaData = [
+  ['ア','a'], ['イ','i'], ['ウ','u'], ['エ','e'], ['オ','o'],
+  ['カ','ka'], ['キ','ki'], ['ク','ku'], ['ケ','ke'], ['コ','ko'],
+  ['サ','sa'], ['シ','shi'], ['ス','su'], ['セ','se'], ['ソ','so'],
+  ['タ','ta'], ['チ','chi'], ['ツ','tsu'], ['テ','te'], ['ト','to'],
+  ['ナ','na'], ['ニ','ni'], ['ヌ','nu'], ['ネ','ne'], ['ノ','no'],
+  ['ハ','ha'], ['ヒ','hi'], ['フ','fu'], ['ヘ','he'], ['ホ','ho'],
+  ['マ','ma'], ['ミ','mi'], ['ム','mu'], ['メ','me'], ['モ','mo'],
+  ['ヤ','ya'], ['',''],     ['ユ','yu'], ['',''],     ['ヨ','yo'],
+  ['ラ','ra'], ['リ','ri'], ['ル','ru'], ['レ','re'], ['ロ','ro'],
+  ['ワ','wa'], ['',''],     ['',''],     ['',''],     ['ヲ','wo'],
+  ['ン','n'],  ['',''],     ['',''],     ['',''],     ['','']
+];
+
+// 레슨 정의 (행 단위)
+function buildLessons(prefix, scriptName, data) {
+  const rows = [
+    { id: 0, title: 'あ행', sub: '모음 5자' },
+    { id: 1, title: 'か행', sub: 'k 시작 5자' },
+    { id: 2, title: 'さ행', sub: 's 시작 5자' },
+    { id: 3, title: 'た행', sub: 't 시작 5자' },
+    { id: 4, title: 'な행', sub: 'n 시작 5자' },
+    { id: 5, title: 'は행', sub: 'h 시작 5자' },
+    { id: 6, title: 'ま행', sub: 'm 시작 5자' },
+    { id: 7, title: 'や행', sub: '반모음 3자' },
+    { id: 8, title: 'ら행', sub: 'r 시작 5자' },
+    { id: 9, title: 'わ/ん', sub: '마지막 3자' }
+  ];
+  return rows.map((r, i) => {
+    const slice = data.slice(i * 5, i * 5 + 5).filter(([c]) => c);
+    // 마지막 레슨: わ + を + ん 묶기
+    if (i === 9) {
+      const wo = data[49];
+      const n = data[50];
+      const chars = [data[45], wo, n].filter(p => p && p[0]);
+      return { ...r, key: `${prefix}-${r.id}`, script: scriptName, chars };
+    }
+    return { ...r, key: `${prefix}-${r.id}`, script: scriptName, chars: slice };
+  });
+}
+
+const HIRA_LESSONS = buildLessons('hira', 'hira', hiraganaData);
+const KATA_LESSONS = buildLessons('kata', 'kata', katakanaData);
+const ALL_LESSONS = [...HIRA_LESSONS, ...KATA_LESSONS];
+
+const greetings = [
+  { jp: 'こんにちは', romaji: 'konnichiwa', ko: '안녕하세요 (낮 인사)' },
+  { jp: 'おはよう ございます', romaji: 'ohayou gozaimasu', ko: '안녕하세요 (아침 인사)' },
+  { jp: 'こんばんは', romaji: 'konbanwa', ko: '안녕하세요 (저녁 인사)' },
+  { jp: 'さようなら', romaji: 'sayounara', ko: '안녕히 가세요' },
+  { jp: 'ありがとう', romaji: 'arigatou', ko: '고마워요' },
+  { jp: 'すみません', romaji: 'sumimasen', ko: '죄송합니다 / 실례합니다' },
+  { jp: 'はい', romaji: 'hai', ko: '네' },
+  { jp: 'いいえ', romaji: 'iie', ko: '아니요' },
+  { jp: 'はじめまして', romaji: 'hajimemashite', ko: '처음 뵙겠습니다' },
+  { jp: 'おやすみなさい', romaji: 'oyasumi nasai', ko: '안녕히 주무세요' },
+  { jp: 'いただきます', romaji: 'itadakimasu', ko: '잘 먹겠습니다' },
+  { jp: 'ごちそうさま', romaji: 'gochisousama', ko: '잘 먹었습니다' }
+];
+
+const numbers = [
+  { digit: 1, jp: 'いち', romaji: 'ichi' },
+  { digit: 2, jp: 'に', romaji: 'ni' },
+  { digit: 3, jp: 'さん', romaji: 'san' },
+  { digit: 4, jp: 'よん / し', romaji: 'yon / shi' },
+  { digit: 5, jp: 'ご', romaji: 'go' },
+  { digit: 6, jp: 'ろく', romaji: 'roku' },
+  { digit: 7, jp: 'なな / しち', romaji: 'nana / shichi' },
+  { digit: 8, jp: 'はち', romaji: 'hachi' },
+  { digit: 9, jp: 'きゅう', romaji: 'kyuu' },
+  { digit: 10, jp: 'じゅう', romaji: 'juu' }
+];
+
+const PAGE_TITLES = {
+  dashboard: '대시보드',
+  hiragana: '히라가나',
+  katakana: '가타카나',
+  lesson: '레슨',
+  greetings: '기본 표현',
+  numbers: '숫자',
+  quiz: '퀴즈',
+  stats: '통계'
+};
+
+// ============= 상태 (localStorage) =============
+const STATE_KEY = 'nihongo-lab-state-v2';
+const LEGACY_KEY = 'nihongo-lab-state';
+
+const defaultState = {
+  // 글자별 마스터리: { 'あ': { seen: false, correct: 0, wrong: 0 } }
+  mastery: {},
+  // 레슨 완료: { 'hira-0': true, ... }
+  lessons: {},
+  // 인사/숫자 노출
+  greetingClicks: 0,
+  // 누적 퀴즈 통계
+  quizScore: 0,
+  quizTotal: 0,
+  // 게이미피케이션
+  xp: 0,
+  streak: 0,
+  lastActiveDate: null,
+  // 오늘 통계
+  todayDate: null,
+  todayLessonsDone: 0,
+  todayQuizCount: 0,
+  todayWeakReviewed: 0
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (raw) {
+      return { ...defaultState, ...JSON.parse(raw) };
+    }
+    // 구버전 마이그레이션
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const old = JSON.parse(legacy);
+      const migrated = { ...defaultState };
+      (old.learnedHira || []).forEach(c => {
+        migrated.mastery[c] = { seen: true, correct: 0, wrong: 0 };
+      });
+      (old.learnedKata || []).forEach(c => {
+        migrated.mastery[c] = { seen: true, correct: 0, wrong: 0 };
+      });
+      migrated.greetingClicks = old.greetingClicks || 0;
+      migrated.quizScore = old.quizScore || 0;
+      migrated.quizTotal = old.quizTotal || 0;
+      return migrated;
+    }
+  } catch {}
+  return { ...defaultState };
+}
+
+function saveState() {
+  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+// ============= 유틸: 마스터리/XP/Streak =============
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function ensureToday() {
+  const today = todayStr();
+  if (state.todayDate !== today) {
+    state.todayDate = today;
+    state.todayLessonsDone = 0;
+    state.todayQuizCount = 0;
+    state.todayWeakReviewed = 0;
+  }
+}
+
+function getMastery(char) {
+  if (!state.mastery[char]) {
+    state.mastery[char] = { seen: false, correct: 0, wrong: 0 };
+  }
+  return state.mastery[char];
+}
+
+function getMasteryLevel(char) {
+  const m = state.mastery[char];
+  if (!m) return 0;
+  if (!m.seen && m.correct === 0) return 0;
+  const total = m.correct + m.wrong;
+  const acc = total > 0 ? m.correct / total : 0;
+  if (m.correct >= 6 && acc >= 0.85) return 4;
+  if (m.correct >= 4 && acc >= 0.75) return 3;
+  if (m.correct >= 2) return 2;
+  if (m.correct >= 1 || m.seen) return 1;
+  return 0;
+}
+
+function markSeen(char) {
+  if (!char) return;
+  const m = getMastery(char);
+  m.seen = true;
+  saveState();
+}
+
+function recordAttempt(char, isCorrect) {
+  if (!char) return;
+  const m = getMastery(char);
+  m.seen = true;
+  if (isCorrect) m.correct++;
+  else m.wrong++;
+  saveState();
+}
+
+function addXP(amount) {
+  state.xp += amount;
+  saveState();
+}
+
+function getLevel() {
+  // 누적 XP 필요량: 1→100, 2→250, 3→500, 4→850, 5→1300 ...
+  // 공식: 100 * level * (level + 1) / 2 (삼각수 기반)
+  let lv = 1;
+  while (100 * lv * (lv + 1) / 2 <= state.xp) lv++;
+  return lv;
+}
+
+function xpForLevel(lv) {
+  return lv <= 1 ? 0 : 100 * (lv - 1) * lv / 2;
+}
+
+function bumpStreak() {
+  const today = todayStr();
+  if (state.lastActiveDate === today) return;
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yestStr = `${yest.getFullYear()}-${yest.getMonth() + 1}-${yest.getDate()}`;
+
+  if (state.lastActiveDate === yestStr) {
+    state.streak += 1;
+  } else {
+    state.streak = 1;
+  }
+  state.lastActiveDate = today;
+  saveState();
+}
+
+// ============= 음성 =============
+function speak(text, lang = 'ja-JP') {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = 0.85;
+  window.speechSynthesis.speak(u);
+}
+
+// ============= 진도 계산 =============
+function totalLearnedChars() {
+  return Object.values(state.mastery).filter(m => m.seen || m.correct > 0).length;
+}
+
+function masteredCount() {
+  return Object.keys(state.mastery).filter(c => getMasteryLevel(c) >= 4).length;
+}
+
+function lessonCompleted(lesson) {
+  return !!state.lessons[lesson.key];
+}
+
+function lessonAllSeen(lesson) {
+  return lesson.chars.every(([c]) => state.mastery[c] && state.mastery[c].seen);
+}
+
+function isLessonUnlocked(lessons, idx) {
+  if (idx === 0) return true;
+  return lessonCompleted(lessons[idx - 1]);
+}
+
+function completedLessonCount(lessons) {
+  return lessons.filter(lessonCompleted).length;
+}
+
+function findNextLesson() {
+  for (const l of HIRA_LESSONS) if (!lessonCompleted(l)) return l;
+  for (const l of KATA_LESSONS) if (!lessonCompleted(l)) return l;
+  return null;
+}
+
+function getWeakChars(limit = 10) {
+  const entries = Object.entries(state.mastery)
+    .filter(([c, m]) => (m.correct + m.wrong) > 0)
+    .map(([c, m]) => {
+      const total = m.correct + m.wrong;
+      const acc = m.correct / total;
+      // 약점 점수: 오답이 많고 정답률이 낮을수록 큼
+      const weakness = m.wrong * 2 + (1 - acc) * 5;
+      return { char: c, acc, total, wrong: m.wrong, weakness };
+    })
+    .filter(e => e.acc < 1 || e.wrong > 0)
+    .sort((a, b) => b.weakness - a.weakness);
+  return entries.slice(0, limit);
+}
+
+// ============= 렌더: 사이드바/대시보드 =============
+function updateGlobalProgress() {
+  ensureToday();
+  const hiraDone = completedLessonCount(HIRA_LESSONS);
+  const kataDone = completedLessonCount(KATA_LESSONS);
+  const hiraPct = Math.round((hiraDone / HIRA_LESSONS.length) * 100);
+  const kataPct = Math.round((kataDone / KATA_LESSONS.length) * 100);
+  const overall = Math.round(((hiraDone + kataDone) / (HIRA_LESSONS.length + KATA_LESSONS.length)) * 100);
+
+  byId('overall-percent').textContent = overall + '%';
+  byId('overall-fill').style.width = overall + '%';
+  byId('fill-hiragana').style.width = hiraPct + '%';
+  byId('fill-katakana').style.width = kataPct + '%';
+  byId('course-progress-hiragana').textContent = hiraPct + '% 완료';
+  byId('course-progress-katakana').textContent = kataPct + '% 완료';
+  byId('completed-hira-lessons').textContent = hiraDone;
+  byId('completed-kata-lessons').textContent = kataDone;
+
+  byId('chip-learned').textContent = totalLearnedChars();
+  const acc = state.quizTotal === 0
+    ? '—'
+    : Math.round((state.quizScore / state.quizTotal) * 100) + '%';
+  byId('chip-accuracy').textContent = acc;
+
+  // 사이드바 streak/xp
+  byId('streak-days').textContent = state.streak;
+  byId('user-level').textContent = getLevel();
+  byId('user-xp').textContent = state.xp;
+
+  // 오늘의 목표
+  byId('goal-1').textContent = `${Math.min(state.todayLessonsDone, 1)}/1`;
+  byId('goal-2').textContent = `${Math.min(state.todayQuizCount, 10)}/10`;
+  const weakTotal = getWeakChars(100).length;
+  byId('goal-3').textContent = weakTotal === 0
+    ? '없음 ✓'
+    : `${state.todayWeakReviewed}/${Math.min(weakTotal, 5)}`;
+
+  // 퀴즈 카드 통계
+  byId('quiz-stats').textContent = state.quizTotal === 0
+    ? '아직 시작 전'
+    : `${state.quizScore}/${state.quizTotal} 정답 (${acc})`;
+
+  // 약점 개수
+  byId('weak-count').textContent = `약점 ${weakTotal}자`;
+}
+
+// ============= 렌더: 카나 그리드 (마스터리 색상) =============
+function renderKana(gridId, data) {
+  const grid = byId(gridId);
+  grid.innerHTML = '';
+  data.forEach(([char, romaji]) => {
+    const cell = document.createElement('div');
+    if (!char) {
+      cell.className = 'kana-cell empty';
+    } else {
+      const level = getMasteryLevel(char);
+      cell.className = `kana-cell mastery-${level}`;
+      cell.innerHTML = `
+        <div class="kana-char">${char}</div>
+        <div class="kana-romaji">${romaji}</div>
+        ${level > 0 ? `<div class="kana-level">L${level}</div>` : ''}
+      `;
+      cell.addEventListener('click', () => {
+        speak(char);
+        markSeen(char);
+        cell.className = `kana-cell mastery-${getMasteryLevel(char)}`;
+        cell.querySelector('.kana-level')?.remove();
+        const lv = getMasteryLevel(char);
+        if (lv > 0) {
+          const tag = document.createElement('div');
+          tag.className = 'kana-level';
+          tag.textContent = 'L' + lv;
+          cell.appendChild(tag);
+        }
+        updateGlobalProgress();
+      });
+    }
+    grid.appendChild(cell);
+  });
+}
+
+// 통계 페이지용 — 클릭 비활성, 마스터리만 표시
+function renderKanaStats(gridId, data) {
+  const grid = byId(gridId);
+  grid.innerHTML = '';
+  data.forEach(([char, romaji]) => {
+    const cell = document.createElement('div');
+    if (!char) {
+      cell.className = 'kana-cell empty';
+    } else {
+      const level = getMasteryLevel(char);
+      const m = state.mastery[char] || { correct: 0, wrong: 0 };
+      const total = m.correct + m.wrong;
+      const acc = total > 0 ? Math.round((m.correct / total) * 100) : null;
+      cell.className = `kana-cell mastery-${level} readonly`;
+      cell.innerHTML = `
+        <div class="kana-char">${char}</div>
+        <div class="kana-romaji">${romaji}</div>
+        <div class="kana-stat">${acc === null ? '—' : acc + '%'}</div>
+      `;
+    }
+    grid.appendChild(cell);
+  });
+}
+
+// ============= 렌더: 레슨 리스트 =============
+function renderLessonList(gridId, lessons) {
+  const grid = byId(gridId);
+  grid.innerHTML = '';
+  lessons.forEach((lesson, idx) => {
+    const unlocked = isLessonUnlocked(lessons, idx);
+    const done = lessonCompleted(lesson);
+    const card = document.createElement('button');
+    card.className = 'lesson-card' + (done ? ' done' : '') + (!unlocked ? ' locked' : '');
+    card.disabled = !unlocked;
+    const preview = lesson.chars.map(([c]) => c).join(' ');
+    card.innerHTML = `
+      <div class="lesson-num">${idx + 1}</div>
+      <div class="lesson-info">
+        <div class="lesson-title">${lesson.title}</div>
+        <div class="lesson-sub">${lesson.sub}</div>
+        <div class="lesson-preview">${preview}</div>
+      </div>
+      <div class="lesson-status-icon">${done ? '✓' : unlocked ? '→' : '🔒'}</div>
+    `;
+    if (unlocked) {
+      card.addEventListener('click', () => openLesson(lesson));
+    }
+    grid.appendChild(card);
+  });
+}
+
+// ============= 렌더: 레슨 상세 =============
+let currentLesson = null;
+
+function openLesson(lesson) {
+  currentLesson = lesson;
+  navigate('lesson');
+  byId('lesson-title').textContent = `${lesson.script === 'hira' ? '히라가나' : '가타카나'} · ${lesson.title}`;
+  byId('lesson-desc').textContent = `${lesson.chars.length}개 글자를 학습한 후 미니퀴즈로 점검하세요.`;
+
+  const status = lessonCompleted(lesson) ? '완료' : (lessonAllSeen(lesson) ? '퀴즈 가능' : '학습 중');
+  byId('lesson-status').textContent = status;
+
+  // 학습 카드 렌더
+  const grid = byId('lesson-cards');
+  grid.innerHTML = '';
+  // 5칸 채우기 위해 빈 셀 추가
+  const cells = [...lesson.chars];
+  while (cells.length < 5) cells.push(['', '']);
+  cells.forEach(([char, romaji]) => {
+    const cell = document.createElement('div');
+    if (!char) {
+      cell.className = 'kana-cell empty';
+    } else {
+      const level = getMasteryLevel(char);
+      cell.className = `kana-cell mastery-${level}`;
+      cell.innerHTML = `
+        <div class="kana-char">${char}</div>
+        <div class="kana-romaji">${romaji}</div>
+      `;
+      cell.addEventListener('click', () => {
+        speak(char);
+        markSeen(char);
+        cell.className = `kana-cell mastery-${getMasteryLevel(char)}`;
+        // 모든 글자 들으면 상태 갱신
+        if (lessonAllSeen(lesson) && !lessonCompleted(lesson)) {
+          byId('lesson-status').textContent = '퀴즈 가능';
+        }
+        updateGlobalProgress();
+      });
+    }
+    grid.appendChild(cell);
+  });
+
+  // 퀴즈 버튼 라벨
+  byId('lesson-quiz-btn').textContent = lessonCompleted(lesson)
+    ? '미니퀴즈 다시 풀기 →'
+    : '미니퀴즈 시작 →';
+}
+
+function backFromLesson() {
+  if (!currentLesson) {
+    navigate('dashboard');
+    return;
+  }
+  navigate(currentLesson.script === 'hira' ? 'hiragana' : 'katakana');
+}
+
+// ============= 인사 / 숫자 =============
+function renderGreetings() {
+  const list = byId('greeting-list');
+  list.innerHTML = '';
+  greetings.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'greeting-card';
+    card.innerHTML = `
+      <div class="greeting-jp">${g.jp}</div>
+      <div class="greeting-romaji">${g.romaji}</div>
+      <div class="greeting-ko">${g.ko}</div>
+    `;
+    card.addEventListener('click', () => {
+      speak(g.jp);
+      state.greetingClicks++;
+      saveState();
+      updateGlobalProgress();
+    });
+    list.appendChild(card);
+  });
+}
+
+function renderNumbers() {
+  const list = byId('number-list');
+  list.innerHTML = '';
+  numbers.forEach(n => {
+    const card = document.createElement('div');
+    card.className = 'number-card';
+    card.innerHTML = `
+      <div class="number-digit">${n.digit}</div>
+      <div class="number-jp">${n.jp}</div>
+      <div class="number-romaji">${n.romaji}</div>
+    `;
+    card.addEventListener('click', () => speak(n.jp.split(' / ')[0]));
+    list.appendChild(card);
+  });
+}
+
+// ============= 퀴즈 엔진 =============
+const QUIZ_MODES = {
+  kanaToRomaji: { label: '글자 → 로마자', show: 'char', options: 'romaji' },
+  romajiToKana: { label: '로마자 → 글자', show: 'romaji', options: 'char' },
+  audio:        { label: '소리 → 글자',   show: 'audio',  options: 'char' },
+  weak:         { label: '약점 복습',      show: 'char',  options: 'romaji' },
+  lesson:       { label: '레슨 퀴즈',      show: 'char',  options: 'romaji' }
+};
+
+let quizState = null;
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildPoolForMode(mode) {
+  const allKana = [...hiraganaData, ...katakanaData].filter(([c]) => c);
+  if (mode === 'weak') {
+    const weakSet = new Set(getWeakChars(20).map(w => w.char));
+    const pool = allKana.filter(([c]) => weakSet.has(c));
+    if (pool.length >= 4) return pool;
+    // 약점이 부족하면 본 적 있는 글자 + 약점으로 보강
+    const seen = allKana.filter(([c]) => state.mastery[c] && state.mastery[c].seen);
+    return seen.length >= 4 ? seen : allKana;
+  }
+  // 기본/역방향/오디오: 학습한 글자가 4개 이상이면 학습한 것 위주, 아니면 전체
+  const seen = allKana.filter(([c]) => state.mastery[c] && state.mastery[c].seen);
+  return seen.length >= 4 ? seen : allKana;
+}
+
+function startQuizFlow(mode, options = {}) {
+  const cfg = QUIZ_MODES[mode];
+  if (!cfg) return;
+
+  let pool;
+  let total = options.total || 10;
+  if (mode === 'lesson' && options.lesson) {
+    pool = options.lesson.chars;
+    total = pool.length;
+  } else {
+    pool = buildPoolForMode(mode);
+  }
+
+  if (pool.length < 4) {
+    alert('퀴즈를 시작하려면 최소 4개 이상의 글자가 필요해요. 먼저 레슨에서 글자를 학습해주세요.');
+    return;
+  }
+
+  quizState = {
+    mode,
+    cfg,
+    pool,
+    total,
+    index: 0,
+    correct: 0,
+    wrongChars: [],
+    isLesson: mode === 'lesson',
+    lesson: options.lesson || null
+  };
+
+  byId('quiz-mode-grid').style.display = 'none';
+  byId('quiz-summary').style.display = 'none';
+  byId('quiz-box').style.display = 'block';
+  byId('quiz-mode-label').textContent = cfg.label;
+  byId('next-quiz').classList.remove('show');
+  nextQuestion();
+}
+
+function nextQuestion() {
+  const q = quizState;
+  if (q.index >= q.total) return finishQuiz();
+  q.index++;
+  byId('quiz-progress').textContent = `${q.index} / ${q.total}`;
+
+  const item = q.pool[Math.floor(Math.random() * q.pool.length)];
+  const [char, romaji] = item;
+  q.currentChar = char;
+  q.currentRomaji = romaji;
+
+  // 프롬프트 렌더
+  const promptEl = byId('quiz-prompt');
+  if (q.cfg.show === 'char') {
+    promptEl.innerHTML = `<div class="quiz-char">${char}</div>`;
+  } else if (q.cfg.show === 'romaji') {
+    promptEl.innerHTML = `<div class="quiz-romaji">${romaji}</div>`;
+  } else if (q.cfg.show === 'audio') {
+    promptEl.innerHTML = `<button class="audio-btn" id="audio-replay">▶ 다시 듣기</button>`;
+    byId('audio-replay').addEventListener('click', () => speak(char));
+    setTimeout(() => speak(char), 150);
+  }
+  if (q.cfg.show !== 'audio' && q.cfg.show === 'char') speak(char);
+
+  // 옵션 4개 (정답 + 오답 3개) — 오답 풀이 부족하면 전체 카나에서 보강
+  const allKana = [...hiraganaData, ...katakanaData].filter(([c]) => c);
+  const wrongPool = q.pool.length >= 4 ? q.pool : allKana;
+  const candidates = wrongPool.filter(([c, r]) => (q.cfg.options === 'char' ? c !== char : r !== romaji));
+  const wrongs = shuffle(candidates).slice(0, 3);
+  const correctOpt = q.cfg.options === 'char' ? char : romaji;
+  const wrongOpts = wrongs.map(([c, r]) => q.cfg.options === 'char' ? c : r);
+  const options = shuffle([correctOpt, ...wrongOpts]);
+
+  const optionsEl = byId('quiz-options');
+  optionsEl.innerHTML = '';
+  optionsEl.className = 'quiz-options ' + (q.cfg.options === 'char' ? 'opt-char' : 'opt-romaji');
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => checkAnswer(btn, opt, correctOpt));
+    optionsEl.appendChild(btn);
+  });
+
+  byId('quiz-result').textContent = '';
+  byId('quiz-result').className = 'quiz-result';
+  byId('next-quiz').classList.remove('show');
+}
+
+function checkAnswer(btn, answer, correctOpt) {
+  const q = quizState;
+  const isCorrect = answer === correctOpt;
+
+  document.querySelectorAll('.option-btn').forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctOpt) b.classList.add('correct');
+  });
+
+  // 통계 갱신
+  state.quizTotal++;
+  state.todayQuizCount++;
+  if (q.mode === 'weak') state.todayWeakReviewed++;
+  if (isCorrect) {
+    state.quizScore++;
+    q.correct++;
+    addXP(10);
+  } else {
+    q.wrongChars.push(q.currentChar);
+    btn.classList.add('wrong');
+  }
+  recordAttempt(q.currentChar, isCorrect);
+  bumpStreak();
+
+  const result = byId('quiz-result');
+  if (isCorrect) {
+    result.textContent = '정답입니다.';
+    result.className = 'quiz-result success';
+  } else {
+    result.textContent = `오답입니다. 정답은 "${correctOpt}"`;
+    result.className = 'quiz-result fail';
+  }
+
+  saveState();
+  updateGlobalProgress();
+  byId('next-quiz').classList.add('show');
+}
+
+function finishQuiz() {
+  const q = quizState;
+  const pct = Math.round((q.correct / q.total) * 100);
+
+  byId('quiz-box').style.display = 'none';
+  byId('quiz-summary').style.display = 'block';
+  byId('summary-score').textContent = `${q.correct} / ${q.total}`;
+  byId('summary-pct').textContent = pct + '%';
+
+  let msg, bonus = 0;
+  if (q.isLesson) {
+    if (q.correct >= Math.ceil(q.total * 0.8)) {
+      // 레슨 통과
+      state.lessons[q.lesson.key] = true;
+      state.todayLessonsDone++;
+      bonus = 50;
+      addXP(bonus);
+      msg = `레슨 통과 ✓ (+${bonus} XP 보너스)`;
+    } else {
+      msg = `정답률 80% 이상이면 레슨이 완료됩니다. 다시 시도해보세요.`;
+    }
+  } else {
+    if (pct >= 90) msg = '완벽해요!';
+    else if (pct >= 70) msg = '잘했어요. 약점 글자도 복습해보세요.';
+    else if (pct >= 50) msg = '조금 더 연습이 필요해요.';
+    else msg = '글자 학습부터 다시 천천히.';
+  }
+  byId('summary-msg').textContent = msg;
+  saveState();
+  updateGlobalProgress();
+}
+
+function exitQuizToModes() {
+  byId('quiz-box').style.display = 'none';
+  byId('quiz-summary').style.display = 'none';
+  byId('quiz-mode-grid').style.display = 'grid';
+}
+
+// ============= 통계 페이지 =============
+function renderStats() {
+  byId('stats-streak').textContent = state.streak;
+  byId('stats-level').textContent = getLevel();
+  byId('stats-xp').textContent = state.xp;
+  const acc = state.quizTotal === 0
+    ? '—'
+    : Math.round((state.quizScore / state.quizTotal) * 100) + '%';
+  byId('stats-accuracy').textContent = acc;
+  byId('stats-attempts').textContent = state.quizTotal;
+  byId('stats-mastered').textContent = masteredCount();
+
+  // 약점 리스트
+  const weakList = byId('weak-list');
+  weakList.innerHTML = '';
+  const weak = getWeakChars(10);
+  if (weak.length === 0) {
+    weakList.innerHTML = `<div class="empty-state">아직 약점 글자가 없어요. 퀴즈를 풀면 여기에 표시됩니다.</div>`;
+  } else {
+    weak.forEach(w => {
+      const item = document.createElement('div');
+      item.className = 'weak-item';
+      item.innerHTML = `
+        <div class="weak-char">${w.char}</div>
+        <div class="weak-stat">
+          <div class="weak-acc">${Math.round(w.acc * 100)}%</div>
+          <div class="weak-meta">오답 ${w.wrong}회 / 총 ${w.total}회</div>
+        </div>
+      `;
+      item.addEventListener('click', () => speak(w.char));
+      weakList.appendChild(item);
+    });
+  }
+
+  // 마스터리 그리드
+  renderKanaStats('stats-hira-grid', hiraganaData);
+  renderKanaStats('stats-kata-grid', katakanaData);
+}
+
+// ============= 네비게이션 =============
+function byId(id) { return document.getElementById(id); }
+
+function navigate(target) {
+  document.querySelectorAll('.side-link').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const link = document.querySelector(`.side-link[data-target="${target}"]`);
+  if (link) link.classList.add('active');
+  byId(target).classList.add('active');
+  byId('crumb-current').textContent = PAGE_TITLES[target] || '';
+  closeSidebar();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (target === 'stats') renderStats();
+  if (target === 'hiragana') {
+    renderLessonList('hira-lesson-grid', HIRA_LESSONS);
+    renderKana('hiragana-grid', hiraganaData);
+  }
+  if (target === 'katakana') {
+    renderLessonList('kata-lesson-grid', KATA_LESSONS);
+    renderKana('katakana-grid', katakanaData);
+  }
+  if (target === 'quiz') {
+    exitQuizToModes();
+  }
+}
+
+function openSidebar() {
+  byId('sidebar').classList.add('open');
+  byId('sidebar-overlay').classList.add('show');
+}
+
+function closeSidebar() {
+  byId('sidebar').classList.remove('open');
+  byId('sidebar-overlay').classList.remove('show');
+}
+
+function setupNav() {
+  document.querySelectorAll('.side-link').forEach(btn => {
+    btn.addEventListener('click', () => navigate(btn.dataset.target));
+  });
+  document.querySelectorAll('[data-jump]').forEach(el => {
+    el.addEventListener('click', () => navigate(el.dataset.jump));
+  });
+  byId('menu-btn').addEventListener('click', openSidebar);
+  byId('sidebar-overlay').addEventListener('click', closeSidebar);
+  byId('lesson-back').addEventListener('click', backFromLesson);
+
+  byId('continue-btn').addEventListener('click', () => {
+    const next = findNextLesson();
+    if (next) openLesson(next);
+    else navigate('hiragana');
+  });
+
+  // 퀴즈 모드 카드
+  document.querySelectorAll('.mode-card').forEach(card => {
+    card.addEventListener('click', () => startQuizFlow(card.dataset.mode));
+  });
+
+  byId('next-quiz').addEventListener('click', nextQuestion);
+  byId('quiz-exit').addEventListener('click', exitQuizToModes);
+  byId('summary-retry').addEventListener('click', () => {
+    const mode = quizState.mode;
+    const opts = quizState.isLesson ? { lesson: quizState.lesson } : {};
+    startQuizFlow(mode, opts);
+  });
+  byId('summary-back').addEventListener('click', () => {
+    if (quizState && quizState.isLesson) {
+      navigate(quizState.lesson.script === 'hira' ? 'hiragana' : 'katakana');
+    } else {
+      exitQuizToModes();
+    }
+  });
+
+  byId('lesson-quiz-btn').addEventListener('click', () => {
+    if (!currentLesson) return;
+    navigate('quiz');
+    startQuizFlow('lesson', { lesson: currentLesson });
+  });
+
+  byId('reset-btn').addEventListener('click', () => {
+    if (confirm('학습 기록을 모두 초기화할까요? (XP/연속학습일 포함)')) {
+      localStorage.removeItem(STATE_KEY);
+      localStorage.removeItem(LEGACY_KEY);
+      state = { ...defaultState };
+      saveState();
+      renderLessonList('hira-lesson-grid', HIRA_LESSONS);
+      renderLessonList('kata-lesson-grid', KATA_LESSONS);
+      renderKana('hiragana-grid', hiraganaData);
+      renderKana('katakana-grid', katakanaData);
+      updateGlobalProgress();
+    }
+  });
+}
+
+// ============= 초기화 =============
+window.addEventListener('DOMContentLoaded', () => {
+  ensureToday();
+  renderKana('hiragana-grid', hiraganaData);
+  renderKana('katakana-grid', katakanaData);
+  renderLessonList('hira-lesson-grid', HIRA_LESSONS);
+  renderLessonList('kata-lesson-grid', KATA_LESSONS);
+  renderGreetings();
+  renderNumbers();
+  setupNav();
+  updateGlobalProgress();
+});
