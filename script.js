@@ -244,16 +244,6 @@ function bumpStreak() {
   saveState();
 }
 
-// ============= 음성 =============
-function speak(text, lang = 'ja-JP') {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  u.rate = 0.85;
-  window.speechSynthesis.speak(u);
-}
-
 // ============= 진도 계산 =============
 function totalLearnedChars() {
   return Object.values(state.mastery).filter(m => m.seen || m.correct > 0).length;
@@ -364,7 +354,6 @@ function renderKana(gridId, data) {
         ${level > 0 ? `<div class="kana-level">L${level}</div>` : ''}
       `;
       cell.addEventListener('click', () => {
-        speak(char);
         markSeen(char);
         cell.className = `kana-cell mastery-${getMasteryLevel(char)}`;
         cell.querySelector('.kana-level')?.remove();
@@ -463,10 +452,8 @@ function openLesson(lesson) {
         <div class="kana-romaji">${romaji}</div>
       `;
       cell.addEventListener('click', () => {
-        speak(char);
         markSeen(char);
         cell.className = `kana-cell mastery-${getMasteryLevel(char)}`;
-        // 모든 글자 들으면 상태 갱신
         if (lessonAllSeen(lesson) && !lessonCompleted(lesson)) {
           byId('lesson-status').textContent = '퀴즈 가능';
         }
@@ -503,7 +490,6 @@ function renderGreetings() {
       <div class="greeting-ko">${g.ko}</div>
     `;
     card.addEventListener('click', () => {
-      speak(g.jp);
       state.greetingClicks++;
       saveState();
       updateGlobalProgress();
@@ -523,7 +509,7 @@ function renderNumbers() {
       <div class="number-jp">${n.jp}</div>
       <div class="number-romaji">${n.romaji}</div>
     `;
-    card.addEventListener('click', () => speak(n.jp.split(' / ')[0]));
+    card.addEventListener('click', () => {});
     list.appendChild(card);
   });
 }
@@ -532,7 +518,6 @@ function renderNumbers() {
 const QUIZ_MODES = {
   kanaToRomaji: { label: '글자 → 로마자', show: 'char', options: 'romaji' },
   romajiToKana: { label: '로마자 → 글자', show: 'romaji', options: 'char' },
-  audio:        { label: '소리 → 글자',   show: 'audio',  options: 'char' },
   weak:         { label: '약점 복습',      show: 'char',  options: 'romaji' },
   lesson:       { label: '레슨 퀴즈',      show: 'char',  options: 'romaji' }
 };
@@ -618,12 +603,7 @@ function nextQuestion() {
     promptEl.innerHTML = `<div class="quiz-char">${char}</div>`;
   } else if (q.cfg.show === 'romaji') {
     promptEl.innerHTML = `<div class="quiz-romaji">${romaji}</div>`;
-  } else if (q.cfg.show === 'audio') {
-    promptEl.innerHTML = `<button class="audio-btn" id="audio-replay">▶ 다시 듣기</button>`;
-    byId('audio-replay').addEventListener('click', () => speak(char));
-    setTimeout(() => speak(char), 150);
   }
-  if (q.cfg.show !== 'audio' && q.cfg.show === 'char') speak(char);
 
   // 옵션 4개 (정답 + 오답 3개) — 오답 풀이 부족하면 전체 카나에서 보강
   const allKana = [...hiraganaData, ...katakanaData].filter(([c]) => c);
@@ -755,7 +735,7 @@ function renderStats() {
           <div class="weak-meta">오답 ${w.wrong}회 / 총 ${w.total}회</div>
         </div>
       `;
-      item.addEventListener('click', () => speak(w.char));
+      item.addEventListener('click', () => {});
       weakList.appendChild(item);
     });
   }
@@ -903,16 +883,56 @@ function updateModelTag() {
   }
 }
 
+let keyVerified = { ollama: false, openai: false, gemini: false, claude: false };
+let verifyTimer = null;
+
 function updateChatReady() {
-  const cfg = { ollama: false, openai: true, gemini: true, claude: true };
-  const needsKey = cfg[chat.provider];
+  const needsKey = chat.provider !== 'ollama';
   const hasKey = !needsKey || !!chat.apiKeys[chat.provider];
-  const ready = hasKey && !!chat.model;
+  const verified = !needsKey ? keyVerified.ollama : keyVerified[chat.provider];
+  const ready = hasKey && !!chat.model && verified;
   byId('chat-input').disabled = !ready;
   byId('chat-send').disabled = !ready;
-  if (ready) setStatus('online', '준비됨');
-  else if (!chat.model) setStatus('', '모델을 선택하세요');
+  if (!chat.model) setStatus('', '모델을 선택하세요');
   else if (!hasKey) setStatus('', 'API 키를 입력하세요');
+  else if (!verified) setStatus('', '키 검증 필요');
+  else setStatus('online', '준비됨');
+}
+
+async function verifyApiKey(provider, key) {
+  try {
+    setStatus('', '키 검증 중...');
+    if (provider === 'openai') {
+      const res = await fetch('https://api.openai.com/v1/models', {
+        headers: { 'Authorization': `Bearer ${key}` }
+      });
+      if (!res.ok) throw new Error();
+    } else if (provider === 'gemini') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+      if (!res.ok) throw new Error();
+    } else if (provider === 'claude') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          messages: [{ role: 'user', content: 'hi' }],
+          max_tokens: 1
+        })
+      });
+      if (res.status === 401 || res.status === 403) throw new Error();
+    }
+    keyVerified[provider] = true;
+    updateChatReady();
+  } catch {
+    keyVerified[provider] = false;
+    setStatus('error', 'API 키가 유효하지 않습니다');
+  }
 }
 
 function populateModels(models) {
@@ -945,9 +965,11 @@ async function fetchOllamaModels() {
       populateModels([]);
       return;
     }
+    keyVerified.ollama = true;
     populateModels(names);
     setStatus('online', '준비됨');
   } catch {
+    keyVerified.ollama = false;
     setStatus('error', 'Ollama 연결 실패 — ollama serve 실행 필요');
     populateModels([]);
   }
@@ -966,6 +988,9 @@ function onProviderChange() {
     fetchOllamaModels();
   } else {
     populateModels(PROVIDER_MODELS[provider]);
+    if (chat.apiKeys[provider] && !keyVerified[provider]) {
+      verifyApiKey(provider, chat.apiKeys[provider]);
+    }
   }
   updateChatReady();
 }
@@ -1129,21 +1154,6 @@ function appendMsg(role, content) {
   bubble.textContent = content;
 
   body.appendChild(bubble);
-
-  if (role === 'assistant') {
-    const actions = document.createElement('div');
-    actions.className = 'chat-msg-actions';
-    const speakBtn = document.createElement('button');
-    speakBtn.className = 'chat-msg-action';
-    speakBtn.textContent = '▶ 듣기';
-    speakBtn.addEventListener('click', () => {
-      const jp = extractJapanese(bubble.textContent);
-      if (jp) speak(jp);
-    });
-    actions.appendChild(speakBtn);
-    body.appendChild(actions);
-  }
-
   wrap.appendChild(avatar);
   wrap.appendChild(body);
   area.appendChild(wrap);
@@ -1158,11 +1168,6 @@ function appendError(msg) {
   el.textContent = msg;
   area.appendChild(el);
   area.scrollTop = area.scrollHeight;
-}
-
-function extractJapanese(text) {
-  const matches = text.match(/[　-〿぀-ゟ゠-ヿ一-龯㐀-䶿＀-￯。、！？「」（）]+/g);
-  return matches ? matches.join(' ') : '';
 }
 
 async function sendMessage() {
@@ -1230,8 +1235,14 @@ function setupChat() {
   byId('provider-select').addEventListener('change', onProviderChange);
 
   byId('apikey-input').addEventListener('input', e => {
-    chat.apiKeys[chat.provider] = e.target.value.trim();
+    const key = e.target.value.trim();
+    chat.apiKeys[chat.provider] = key;
+    keyVerified[chat.provider] = false;
     updateChatReady();
+    clearTimeout(verifyTimer);
+    if (key) {
+      verifyTimer = setTimeout(() => verifyApiKey(chat.provider, key), 600);
+    }
   });
 
   byId('apikey-eye').addEventListener('click', () => {

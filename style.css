@@ -1232,20 +1232,6 @@ button {
   letter-spacing: 2px;
   text-transform: uppercase;
 }
-.audio-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 28px 36px;
-  font-size: 17px;
-  font-weight: 700;
-  border-radius: 12px;
-  margin: 12px auto;
-  cursor: pointer;
-  transition: all 0.12s;
-  display: inline-block;
-}
-.audio-btn:hover { background: var(--accent-hover); }
 
 /* 옵션이 카나일 때: 더 큰 글자, 한 줄 */
 .quiz-options.opt-char .option-btn {
@@ -1396,7 +1382,6 @@ button {
   .lesson-actions .btn-primary { width: 100%; }
   .mode-grid { grid-template-columns: 1fr; }
   .quiz-romaji { font-size: 2.6rem; padding: 22px 14px; }
-  .audio-btn { padding: 22px 28px; font-size: 15px; }
   .quiz-options.opt-char .option-btn { font-size: 22px; padding: 14px; }
   .stats-cards { grid-template-columns: repeat(2, 1fr); }
   .stat-big { padding: 14px 16px; }
@@ -1581,25 +1566,6 @@ button {
   background: var(--accent);
   color: white;
   border: none;
-}
-.chat-msg-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
-}
-.chat-msg-action {
-  background: none;
-  border: none;
-  font-size: 11px;
-  color: var(--text-faint);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.12s;
-}
-.chat-msg-action:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
 }
 
 /* Streaming indicator */
