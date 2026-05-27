@@ -2,35 +2,6 @@
 // Manabi — 일본어 학습 플랫폼
 // ===================================================================
 
-// ============= 데이터 =============
-const hiraganaData = [
-  ['あ','a'], ['い','i'], ['う','u'], ['え','e'], ['お','o'],
-  ['か','ka'], ['き','ki'], ['く','ku'], ['け','ke'], ['こ','ko'],
-  ['さ','sa'], ['し','shi'], ['す','su'], ['せ','se'], ['そ','so'],
-  ['た','ta'], ['ち','chi'], ['つ','tsu'], ['て','te'], ['と','to'],
-  ['な','na'], ['に','ni'], ['ぬ','nu'], ['ね','ne'], ['の','no'],
-  ['は','ha'], ['ひ','hi'], ['ふ','fu'], ['へ','he'], ['ほ','ho'],
-  ['ま','ma'], ['み','mi'], ['む','mu'], ['め','me'], ['も','mo'],
-  ['や','ya'], ['',''],     ['ゆ','yu'], ['',''],     ['よ','yo'],
-  ['ら','ra'], ['り','ri'], ['る','ru'], ['れ','re'], ['ろ','ro'],
-  ['わ','wa'], ['',''],     ['',''],     ['',''],     ['を','wo'],
-  ['ん','n'],  ['',''],     ['',''],     ['',''],     ['','']
-];
-
-const katakanaData = [
-  ['ア','a'], ['イ','i'], ['ウ','u'], ['エ','e'], ['オ','o'],
-  ['カ','ka'], ['キ','ki'], ['ク','ku'], ['ケ','ke'], ['コ','ko'],
-  ['サ','sa'], ['シ','shi'], ['ス','su'], ['セ','se'], ['ソ','so'],
-  ['タ','ta'], ['チ','chi'], ['ツ','tsu'], ['テ','te'], ['ト','to'],
-  ['ナ','na'], ['ニ','ni'], ['ヌ','nu'], ['ネ','ne'], ['ノ','no'],
-  ['ハ','ha'], ['ヒ','hi'], ['フ','fu'], ['ヘ','he'], ['ホ','ho'],
-  ['マ','ma'], ['ミ','mi'], ['ム','mu'], ['メ','me'], ['モ','mo'],
-  ['ヤ','ya'], ['',''],     ['ユ','yu'], ['',''],     ['ヨ','yo'],
-  ['ラ','ra'], ['リ','ri'], ['ル','ru'], ['レ','re'], ['ロ','ro'],
-  ['ワ','wa'], ['',''],     ['',''],     ['',''],     ['ヲ','wo'],
-  ['ン','n'],  ['',''],     ['',''],     ['',''],     ['','']
-];
-
 // 레슨 정의 (행 단위)
 function buildLessons(prefix, scriptName, data) {
   const rows = [
@@ -62,34 +33,6 @@ const HIRA_LESSONS = buildLessons('hira', 'hira', hiraganaData);
 const KATA_LESSONS = buildLessons('kata', 'kata', katakanaData);
 const ALL_LESSONS = [...HIRA_LESSONS, ...KATA_LESSONS];
 
-const greetings = [
-  { jp: 'こんにちは', romaji: 'konnichiwa', ko: '안녕하세요 (낮 인사)' },
-  { jp: 'おはよう ございます', romaji: 'ohayou gozaimasu', ko: '안녕하세요 (아침 인사)' },
-  { jp: 'こんばんは', romaji: 'konbanwa', ko: '안녕하세요 (저녁 인사)' },
-  { jp: 'さようなら', romaji: 'sayounara', ko: '안녕히 가세요' },
-  { jp: 'ありがとう', romaji: 'arigatou', ko: '고마워요' },
-  { jp: 'すみません', romaji: 'sumimasen', ko: '죄송합니다 / 실례합니다' },
-  { jp: 'はい', romaji: 'hai', ko: '네' },
-  { jp: 'いいえ', romaji: 'iie', ko: '아니요' },
-  { jp: 'はじめまして', romaji: 'hajimemashite', ko: '처음 뵙겠습니다' },
-  { jp: 'おやすみなさい', romaji: 'oyasumi nasai', ko: '안녕히 주무세요' },
-  { jp: 'いただきます', romaji: 'itadakimasu', ko: '잘 먹겠습니다' },
-  { jp: 'ごちそうさま', romaji: 'gochisousama', ko: '잘 먹었습니다' }
-];
-
-const numbers = [
-  { digit: 1, jp: 'いち', romaji: 'ichi' },
-  { digit: 2, jp: 'に', romaji: 'ni' },
-  { digit: 3, jp: 'さん', romaji: 'san' },
-  { digit: 4, jp: 'よん / し', romaji: 'yon / shi' },
-  { digit: 5, jp: 'ご', romaji: 'go' },
-  { digit: 6, jp: 'ろく', romaji: 'roku' },
-  { digit: 7, jp: 'なな / しち', romaji: 'nana / shichi' },
-  { digit: 8, jp: 'はち', romaji: 'hachi' },
-  { digit: 9, jp: 'きゅう', romaji: 'kyuu' },
-  { digit: 10, jp: 'じゅう', romaji: 'juu' }
-];
-
 const PAGE_TITLES = {
   dashboard: '대시보드',
   hiragana: '히라가나',
@@ -99,6 +42,7 @@ const PAGE_TITLES = {
   numbers: '숫자',
   quiz: '퀴즈',
   stats: '통계',
+  kanji: '한자 (N5)',
   chat: 'AI 회화'
 };
 
@@ -748,11 +692,15 @@ function renderStats() {
 // ============= 네비게이션 =============
 function byId(id) { return document.getElementById(id); }
 
-function navigate(target) {
+function navigate(target, opts) {
   document.querySelectorAll('.side-link').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const link = document.querySelector(`.side-link[data-target="${target}"]`);
-  if (link) link.classList.add('active');
+  if (opts && opts.activeLink) {
+    opts.activeLink.classList.add('active');
+  } else {
+    const link = document.querySelector(`.side-link[data-target="${target}"]`);
+    if (link) link.classList.add('active');
+  }
   byId(target).classList.add('active');
   byId('crumb-current').textContent = PAGE_TITLES[target] || '';
   closeSidebar();
@@ -769,6 +717,9 @@ function navigate(target) {
   }
   if (target === 'quiz') {
     exitQuizToModes();
+  }
+  if (target === 'kanji') {
+    setKanjiLevel(currentKanjiLevel);
   }
   if (target === 'chat' && chat.provider === 'ollama' && !chat.model) {
     fetchOllamaModels();
@@ -787,11 +738,23 @@ function closeSidebar() {
 
 function setupNav() {
   document.querySelectorAll('.side-link').forEach(btn => {
-    btn.addEventListener('click', () => navigate(btn.dataset.target));
+    if (btn.classList.contains('has-sub')) return;
+    btn.addEventListener('click', () => {
+      const level = btn.dataset.kanjiLevel;
+      if (level) {
+        currentKanjiLevel = level;
+      }
+      navigate(btn.dataset.target, { activeLink: btn });
+    });
   });
   document.querySelectorAll('[data-jump]').forEach(el => {
     el.addEventListener('click', () => navigate(el.dataset.jump));
   });
+  byId('kanji-toggle').addEventListener('click', () => {
+    byId('kanji-toggle').classList.toggle('open');
+    byId('kanji-submenu').classList.toggle('open');
+  });
+
   byId('menu-btn').addEventListener('click', openSidebar);
   byId('sidebar-overlay').addEventListener('click', closeSidebar);
   byId('lesson-back').addEventListener('click', backFromLesson);
@@ -840,6 +803,100 @@ function setupNav() {
       renderKana('katakana-grid', katakanaData);
       updateGlobalProgress();
     }
+  });
+}
+
+// ============= 한자 학습 =============
+const KANJI_LEVELS = { n5: KANJI_N5, n4: KANJI_N4 };
+let currentKanjiLevel = 'n5';
+
+function getKanjiSeen() {
+  const raw = localStorage.getItem('kanji-seen');
+  return raw ? JSON.parse(raw) : [];
+}
+
+function markKanjiSeen(kanji) {
+  const seen = getKanjiSeen();
+  if (!seen.includes(kanji)) {
+    seen.push(kanji);
+    localStorage.setItem('kanji-seen', JSON.stringify(seen));
+  }
+}
+
+function setKanjiLevel(level) {
+  currentKanjiLevel = level;
+  const data = KANJI_LEVELS[level];
+  const label = level.toUpperCase();
+  byId('kanji-page-title').textContent = `한자 漢字 · JLPT ${label}`;
+  byId('kanji-page-desc').textContent = `JLPT ${label} 필수 한자 ${data.length}자. 카드를 클릭해 상세 정보를 확인하세요.`;
+  byId('kanji-total-count').textContent = data.length;
+  byId('kanji-search').value = '';
+  renderKanjiGrid();
+}
+
+function renderKanjiGrid(filter = '') {
+  const grid = byId('kanji-grid');
+  grid.innerHTML = '';
+  const seen = getKanjiSeen();
+  const data = KANJI_LEVELS[currentKanjiLevel];
+  const q = filter.toLowerCase();
+
+  let count = 0;
+  data.forEach(k => {
+    if (q && !k.kanji.includes(q)
+      && !k.meaning.includes(q)
+      && !k.onyomi.join('').includes(q)
+      && !k.kunyomi.join('').includes(q)) return;
+
+    const card = document.createElement('div');
+    const isSeen = seen.includes(k.kanji);
+    card.className = 'kanji-card' + (isSeen ? ' seen' : '');
+    card.innerHTML = `
+      <div class="kanji-card-char">${k.kanji}</div>
+      <div class="kanji-card-meaning">${k.meaning.split(',')[0]}</div>
+    `;
+    card.addEventListener('click', () => openKanjiModal(k));
+    grid.appendChild(card);
+    if (isSeen) count++;
+  });
+  byId('kanji-learned-count').textContent = count;
+}
+
+function openKanjiModal(k) {
+  markKanjiSeen(k.kanji);
+
+  byId('km-char').textContent = k.kanji;
+  byId('km-meaning').textContent = k.meaning;
+  byId('km-onyomi').textContent = k.onyomi.length ? k.onyomi.join('、') : '—';
+  byId('km-kunyomi').textContent = k.kunyomi.length ? k.kunyomi.join('、') : '—';
+
+  const wordsList = byId('km-words');
+  wordsList.innerHTML = '';
+  k.words.forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'km-word-item';
+    item.innerHTML = `
+      <div class="km-word-jp"><ruby>${w.word}<rt>${w.reading}</rt></ruby></div>
+      <div class="km-word-meaning">${w.meaning}</div>
+    `;
+    wordsList.appendChild(item);
+  });
+
+  byId('kanji-modal').style.display = 'flex';
+  renderKanjiGrid(byId('kanji-search').value);
+}
+
+function setupKanji() {
+  byId('kanji-modal-close').addEventListener('click', () => {
+    byId('kanji-modal').style.display = 'none';
+  });
+  byId('kanji-modal').addEventListener('click', e => {
+    if (e.target === byId('kanji-modal')) {
+      byId('kanji-modal').style.display = 'none';
+    }
+  });
+  byId('kanji-search').addEventListener('input', e => {
+    renderKanjiGrid(e.target.value.trim());
   });
 }
 
@@ -1321,6 +1378,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderGreetings();
   renderNumbers();
   setupNav();
+  setupKanji();
   setupChat();
   updateGlobalProgress();
 });

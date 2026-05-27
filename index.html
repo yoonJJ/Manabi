@@ -38,6 +38,20 @@
         <button class="side-link" data-target="numbers">
           <span class="icon">#</span><span class="label">숫자</span>
         </button>
+        <button class="side-link has-sub" id="kanji-toggle">
+          <span class="icon">漢</span><span class="label">한자</span>
+          <span class="sub-arrow">▸</span>
+        </button>
+        <div class="sub-menu" id="kanji-submenu">
+          <button class="side-link sub" data-target="kanji" data-kanji-level="n5">
+            <span class="label">N5</span>
+            <span class="badge">103자</span>
+          </button>
+          <button class="side-link sub" data-target="kanji" data-kanji-level="n4">
+            <span class="label">N4</span>
+            <span class="badge">181자</span>
+          </button>
+        </div>
       </div>
 
       <div class="nav-group">
@@ -367,6 +381,49 @@
         </div>
       </section>
 
+      <!-- ============ 한자 ============ -->
+      <section id="kanji" class="page">
+        <div class="page-head">
+          <div>
+            <h1 id="kanji-page-title">한자 漢字 · JLPT N5</h1>
+            <p class="page-desc" id="kanji-page-desc">JLPT N5 필수 한자 103자. 카드를 클릭해 상세 정보를 확인하세요.</p>
+          </div>
+          <div class="page-head-meta">
+            <div class="meta-card">
+              <div class="meta-label">학습 진행</div>
+              <div class="meta-value"><span id="kanji-learned-count">0</span> / <span id="kanji-total-count">103</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kanji-search-bar">
+          <input type="text" id="kanji-search" placeholder="한자, 읽기, 뜻으로 검색...">
+        </div>
+
+        <div class="kanji-card-grid" id="kanji-grid"></div>
+
+        <!-- 한자 상세 모달 -->
+        <div class="kanji-modal-overlay" id="kanji-modal" style="display:none">
+          <div class="kanji-modal">
+            <button class="kanji-modal-close" id="kanji-modal-close">✕</button>
+            <div class="kanji-modal-char" id="km-char"></div>
+            <div class="kanji-modal-meaning" id="km-meaning"></div>
+            <div class="kanji-modal-readings">
+              <div class="km-reading-group">
+                <div class="km-reading-label">음독 (온요미)</div>
+                <div class="km-reading-value" id="km-onyomi"></div>
+              </div>
+              <div class="km-reading-group">
+                <div class="km-reading-label">훈독 (쿤요미)</div>
+                <div class="km-reading-value" id="km-kunyomi"></div>
+              </div>
+            </div>
+            <div class="km-words-title">예시 단어</div>
+            <div class="km-words-list" id="km-words"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ AI 회화 ============ -->
       <section id="chat" class="page page-chat">
         <div class="chat-header">
@@ -473,6 +530,8 @@
   </div>
 </div>
 
+<script src="data.js"></script>
+<script src="kanji-data.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
