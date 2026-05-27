@@ -848,7 +848,8 @@ const SYSTEM_PROMPT = `あなたは日本語の会話の先生です。
 - 学習者は韓国語話者で、日本語の初心者です。
 - やさしい日本語で話してください。
 - 各返答に韓国語の翻訳を括弧で添えてください。
-- 文法や表現の間違いがあれば、優しく訂正してください。`;
+- 文法や表現の間違いがあれば、優しく訂正してください。
+- 漢字を使う場合は必ず直後に丸括弧でふりがなを付けてください。例：日本語(にほんご)、食(た)べる、美(うつく)しい`;
 
 const PROVIDER_MODELS = {
   ollama: [],
@@ -1134,6 +1135,17 @@ async function readSSE(res, onData) {
 
 const STREAM_FN = { ollama: streamOllama, openai: streamOpenAI, gemini: streamGemini, claude: streamClaude };
 
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function renderFurigana(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/([一-龯㐀-䶿]+)[（(]([ぁ-ゟー]+)[）)]/g, '<ruby>$1<rt>$2</rt></ruby>');
+}
+
 function appendMsg(role, content) {
   const area = byId('chat-messages');
   const welcome = area.querySelector('.chat-welcome');
@@ -1212,6 +1224,9 @@ async function sendMessage() {
   }
 
   cursor.remove();
+  if (fullResponse) {
+    bubble.innerHTML = renderFurigana(fullResponse);
+  }
   if (fullResponse) {
     chat.messages.push({ role: 'assistant', content: fullResponse });
   }

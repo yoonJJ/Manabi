@@ -1553,9 +1553,17 @@ button {
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 2;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.chat-msg-content ruby {
+  ruby-position: over;
+}
+.chat-msg-content rt {
+  font-size: 0.55em;
+  color: var(--accent);
+  font-weight: 500;
 }
 .chat-msg.assistant .chat-msg-content {
   background: var(--surface);
