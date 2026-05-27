@@ -98,7 +98,8 @@ const PAGE_TITLES = {
   greetings: '기본 표현',
   numbers: '숫자',
   quiz: '퀴즈',
-  stats: '통계'
+  stats: '통계',
+  chat: 'AI 회화'
 };
 
 // ============= 상태 (localStorage) =============
@@ -789,6 +790,9 @@ function navigate(target) {
   if (target === 'quiz') {
     exitQuizToModes();
   }
+  if (target === 'chat' && chat.provider === 'ollama' && !chat.model) {
+    fetchOllamaModels();
+  }
 }
 
 function openSidebar() {
@@ -859,6 +863,428 @@ function setupNav() {
   });
 }
 
+// ============= AI 회화 =============
+const SYSTEM_PROMPT = `あなたは日本語の会話の先生です。
+- 学習者は韓国語話者で、日本語の初心者です。
+- やさしい日本語で話してください。
+- 各返答に韓国語の翻訳を括弧で添えてください。
+- 文法や表現の間違いがあれば、優しく訂正してください。`;
+
+const PROVIDER_MODELS = {
+  ollama: [],
+  openai: ['gpt-4o', 'gpt-4o-mini'],
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro'],
+  claude: ['claude-sonnet-4-6', 'claude-haiku-4-5']
+};
+
+const chat = {
+  provider: 'ollama',
+  model: '',
+  apiKeys: {},
+  messages: [],
+  isStreaming: false,
+  controller: null
+};
+
+function setStatus(state, text) {
+  const dot = byId('status-dot');
+  const txt = byId('status-text');
+  dot.className = 'status-dot' + (state === 'online' ? ' online' : state === 'error' ? ' error' : '');
+  txt.textContent = text;
+}
+
+function updateModelTag() {
+  const tag = byId('chat-model-tag');
+  if (chat.model) {
+    const pName = { ollama: 'Ollama', openai: 'OpenAI', gemini: 'Gemini', claude: 'Claude' }[chat.provider];
+    tag.textContent = `${pName} · ${chat.model}`;
+  } else {
+    tag.textContent = '';
+  }
+}
+
+function updateChatReady() {
+  const cfg = { ollama: false, openai: true, gemini: true, claude: true };
+  const needsKey = cfg[chat.provider];
+  const hasKey = !needsKey || !!chat.apiKeys[chat.provider];
+  const ready = hasKey && !!chat.model;
+  byId('chat-input').disabled = !ready;
+  byId('chat-send').disabled = !ready;
+  if (ready) setStatus('online', '준비됨');
+  else if (!chat.model) setStatus('', '모델을 선택하세요');
+  else if (!hasKey) setStatus('', 'API 키를 입력하세요');
+}
+
+function populateModels(models) {
+  const sel = byId('model-select');
+  sel.innerHTML = '';
+  if (models.length === 0) {
+    sel.innerHTML = '<option value="">모델 없음</option>';
+    return;
+  }
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    sel.appendChild(opt);
+  });
+  chat.model = models[0];
+  sel.value = models[0];
+  updateModelTag();
+  updateChatReady();
+}
+
+async function fetchOllamaModels() {
+  try {
+    const res = await fetch('http://localhost:11434/api/tags');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const names = (data.models || []).map(m => m.name);
+    if (names.length === 0) {
+      setStatus('error', 'Ollama에 설치된 모델 없음');
+      populateModels([]);
+      return;
+    }
+    populateModels(names);
+    setStatus('online', '준비됨');
+  } catch {
+    setStatus('error', 'Ollama 연결 실패 — ollama serve 실행 필요');
+    populateModels([]);
+  }
+}
+
+function onProviderChange() {
+  const provider = byId('provider-select').value;
+  chat.provider = provider;
+  chat.model = '';
+
+  const needsKey = provider !== 'ollama';
+  byId('apikey-row').style.display = needsKey ? 'block' : 'none';
+  byId('apikey-input').value = chat.apiKeys[provider] || '';
+
+  if (provider === 'ollama') {
+    fetchOllamaModels();
+  } else {
+    populateModels(PROVIDER_MODELS[provider]);
+  }
+  updateChatReady();
+}
+
+// --- streaming per provider ---
+
+async function streamOllama(messages, onChunk, signal) {
+  const res = await fetch('http://localhost:11434/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: chat.model,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+      stream: true
+    }),
+    signal
+  });
+  if (!res.ok) throw new Error(`Ollama 오류 (${res.status})`);
+  await readStream(res, line => {
+    const d = JSON.parse(line);
+    if (d.message?.content) onChunk(d.message.content);
+  });
+}
+
+async function streamOpenAI(messages, onChunk, signal) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${chat.apiKeys.openai}`
+    },
+    body: JSON.stringify({
+      model: chat.model,
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
+      stream: true
+    }),
+    signal
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI 오류 (${res.status}): ${err}`);
+  }
+  await readSSE(res, payload => {
+    if (payload === '[DONE]') return;
+    const d = JSON.parse(payload);
+    const delta = d.choices?.[0]?.delta?.content;
+    if (delta) onChunk(delta);
+  });
+}
+
+async function streamGemini(messages, onChunk, signal) {
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }]
+  }));
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${chat.model}:streamGenerateContent?key=${chat.apiKeys.gemini}&alt=sse`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents
+    }),
+    signal
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini 오류 (${res.status}): ${err}`);
+  }
+  await readSSE(res, payload => {
+    const d = JSON.parse(payload);
+    const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) onChunk(text);
+  });
+}
+
+async function streamClaude(messages, onChunk, signal) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': chat.apiKeys.claude,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: chat.model,
+      system: SYSTEM_PROMPT,
+      messages,
+      stream: true,
+      max_tokens: 1024
+    }),
+    signal
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Claude 오류 (${res.status}): ${err}`);
+  }
+  await readSSE(res, payload => {
+    const d = JSON.parse(payload);
+    if (d.type === 'content_block_delta' && d.delta?.text) {
+      onChunk(d.delta.text);
+    }
+  });
+}
+
+async function readStream(res, onLine) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const l of lines) {
+      if (l.trim()) onLine(l);
+    }
+  }
+  if (buf.trim()) onLine(buf);
+}
+
+async function readSSE(res, onData) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop();
+    for (const l of lines) {
+      if (l.startsWith('data: ')) {
+        onData(l.slice(6));
+      }
+    }
+  }
+}
+
+const STREAM_FN = { ollama: streamOllama, openai: streamOpenAI, gemini: streamGemini, claude: streamClaude };
+
+function appendMsg(role, content) {
+  const area = byId('chat-messages');
+  const welcome = area.querySelector('.chat-welcome');
+  if (welcome) welcome.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = `chat-msg ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'chat-msg-avatar';
+  avatar.textContent = role === 'user' ? 'You' : 'AI';
+
+  const body = document.createElement('div');
+  body.className = 'chat-msg-body';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-msg-content';
+  bubble.textContent = content;
+
+  body.appendChild(bubble);
+
+  if (role === 'assistant') {
+    const actions = document.createElement('div');
+    actions.className = 'chat-msg-actions';
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'chat-msg-action';
+    speakBtn.textContent = '▶ 듣기';
+    speakBtn.addEventListener('click', () => {
+      const jp = extractJapanese(bubble.textContent);
+      if (jp) speak(jp);
+    });
+    actions.appendChild(speakBtn);
+    body.appendChild(actions);
+  }
+
+  wrap.appendChild(avatar);
+  wrap.appendChild(body);
+  area.appendChild(wrap);
+  area.scrollTop = area.scrollHeight;
+  return bubble;
+}
+
+function appendError(msg) {
+  const area = byId('chat-messages');
+  const el = document.createElement('div');
+  el.className = 'chat-error';
+  el.textContent = msg;
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+function extractJapanese(text) {
+  const matches = text.match(/[　-〿぀-ゟ゠-ヿ一-龯㐀-䶿＀-￯。、！？「」（）]+/g);
+  return matches ? matches.join(' ') : '';
+}
+
+async function sendMessage() {
+  const input = byId('chat-input');
+  const text = input.value.trim();
+  if (!text || chat.isStreaming) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  chat.messages.push({ role: 'user', content: text });
+  appendMsg('user', text);
+
+  chat.isStreaming = true;
+  chat.controller = new AbortController();
+  byId('chat-send').textContent = '중지';
+  setStatus('online', '응답 중...');
+
+  const bubble = appendMsg('assistant', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'streaming-cursor';
+  bubble.appendChild(cursor);
+
+  let fullResponse = '';
+  const fn = STREAM_FN[chat.provider];
+
+  try {
+    await fn(chat.messages, chunk => {
+      fullResponse += chunk;
+      bubble.textContent = fullResponse;
+      bubble.appendChild(cursor);
+      byId('chat-messages').scrollTop = byId('chat-messages').scrollHeight;
+    }, chat.controller.signal);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      if (!fullResponse) {
+        bubble.closest('.chat-msg').remove();
+      }
+    } else {
+      bubble.closest('.chat-msg').remove();
+      appendError(e.message);
+    }
+  }
+
+  cursor.remove();
+  if (fullResponse) {
+    chat.messages.push({ role: 'assistant', content: fullResponse });
+  }
+  chat.isStreaming = false;
+  chat.controller = null;
+  byId('chat-send').textContent = '전송';
+  updateChatReady();
+}
+
+function clearChat() {
+  chat.messages = [];
+  const area = byId('chat-messages');
+  area.innerHTML = `
+    <div class="chat-welcome">
+      <div class="chat-welcome-title">AI 선생님과 일본어로 대화해보세요</div>
+      <div class="chat-welcome-sub">위의 설정에서 프로바이더와 모델을 선택한 후 대화를 시작하세요.</div>
+    </div>`;
+}
+
+function setupChat() {
+  byId('provider-select').addEventListener('change', onProviderChange);
+
+  byId('apikey-input').addEventListener('input', e => {
+    chat.apiKeys[chat.provider] = e.target.value.trim();
+    updateChatReady();
+  });
+
+  byId('apikey-eye').addEventListener('click', () => {
+    const inp = byId('apikey-input');
+    const btn = byId('apikey-eye');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      btn.textContent = '숨기기';
+    } else {
+      inp.type = 'password';
+      btn.textContent = '보기';
+    }
+  });
+
+  byId('model-select').addEventListener('change', e => {
+    chat.model = e.target.value;
+    updateModelTag();
+    updateChatReady();
+  });
+
+  byId('chat-settings-toggle').addEventListener('click', () => {
+    const panel = byId('chat-settings');
+    panel.classList.toggle('open');
+    byId('chat-settings-toggle').textContent = panel.classList.contains('open') ? '설정 ▴' : '설정 ▾';
+  });
+
+  byId('chat-send').addEventListener('click', () => {
+    if (chat.isStreaming) {
+      chat.controller?.abort();
+    } else {
+      sendMessage();
+    }
+  });
+
+  const input = byId('chat-input');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!chat.isStreaming) sendMessage();
+    }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+
+  byId('chat-clear').addEventListener('click', () => {
+    if (chat.messages.length > 0 && confirm('대화 내용을 초기화할까요?')) {
+      clearChat();
+    }
+  });
+}
+
 // ============= 초기화 =============
 window.addEventListener('DOMContentLoaded', () => {
   ensureToday();
@@ -869,5 +1295,6 @@ window.addEventListener('DOMContentLoaded', () => {
   renderGreetings();
   renderNumbers();
   setupNav();
+  setupChat();
   updateGlobalProgress();
 });
